@@ -11,6 +11,7 @@ ALERT_NAME="$1"
 # Define log file
 LOGFILE="/var/log/partitionmonitor_install.log"
 CUSTOMER_FILE="/root/.customername.txt"
+VERSION_FILE="/root/.partitionmonitor_version"
 
 # Log function
 log() {
@@ -19,6 +20,9 @@ log() {
 
 # Save the customer name to a file
 echo "$ALERT_NAME" > "$CUSTOMER_FILE"
+
+# Initialize the current version file
+echo "1.0.0" > "$VERSION_FILE"
 
 # Creating the partitionmonitor.sh script
 log "Creating /partitionmonitor.sh"
@@ -63,7 +67,7 @@ check_disk_space() {
 
 # Function to check for updates and install if available
 check_for_updates() {
-    current_version="1.0.0"
+    current_version=$(cat /root/.partitionmonitor_version)
     remote_version=$(curl -s https://raw.githubusercontent.com/maenmustafa/linux/main/version.txt)
 
     if [ "$remote_version" != "$current_version" ]; then
@@ -75,6 +79,10 @@ check_for_updates() {
         CustomerName=$(cat /root/.customername.txt)
 
         /tmp/partition_monitor_installer.sh "$CustomerName"
+
+        # Update the current version file
+        echo "$remote_version" > /root/.partitionmonitor_version
+
         echo "New version $remote_version installed successfully."
     else
         echo "No new version available. Current version: $current_version."
@@ -119,7 +127,7 @@ fi
 
 # Add the script to crontab
 log "Adding /partitionmonitor.sh to crontab"
-(crontab -l 2>/dev/null; echo "0 */6 * * * /partitionmonitor.sh") | crontab -
+(crontab -l 2>/dev/null; echo "* */6 * * * /partitionmonitor.sh") | crontab -
 
 if [ $? -eq 0 ]; then
     log "Successfully added /partitionmonitor.sh to crontab"
