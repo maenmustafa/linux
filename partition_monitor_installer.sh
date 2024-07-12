@@ -10,21 +10,25 @@ ALERT_NAME="$1"
 
 # Define log file
 LOGFILE="/var/log/partitionmonitor_install.log"
+CUSTOMER_FILE="/root/.customername.txt"
 
 # Log function
 log() {
     echo "$(date +"%Y-%m-%d %H:%M:%S") : $1" >> "$LOGFILE"
 }
 
+# Save the customer name to a file
+echo "$ALERT_NAME" > "$CUSTOMER_FILE"
+
 # Creating the partitionmonitor.sh script
 log "Creating /partitionmonitor.sh"
-cat << EOF > /partitionmonitor.sh
+cat << 'EOF' > /partitionmonitor.sh
 #!/bin/bash
 # monitoring tools final script... monitor diskspace
 
 # Set your parameters
 thresholdUsage=80
-ip4=\$(/sbin/ip -o -4 addr list eth0 | awk '{print \$4}' | cut -d/ -f1)
+ip4=$(hostname -I | awk '{print $1}')
 
 recipientEmails=("angalerts@an-group.one")
 smtpServer="smtp.gmail.com"
@@ -38,27 +42,50 @@ partitions=("/" "/hana/data" "/hana/log" "/hana/shared" "/usr/sap")
 # Function to check disk usage and send email if above threshold
 check_disk_space() {
     emailBody=""
-    for partition in "\${partitions[@]}"; do
-        usage=\$(df -h "\$partition" | awk 'NR==2 {print \$5}' | sed 's/%//')
-        if [ "\$usage" -ge "\$thresholdUsage" ]; then
-            emailBody+="Disk usage for partition \$partition is above \$thresholdUsage%. Current usage: \$usage%.\n"
+    for partition in "${partitions[@]}"; do
+        usage=$(df -h "$partition" | awk 'NR==2 {print $5}' | sed 's/%//')
+        if [ "$usage" -ge "$thresholdUsage" ]; then
+            emailBody+="Disk usage for partition $partition is above $thresholdUsage%. Current usage: $usage%.\n"
         fi
     done
     
-    if [ -n "\$emailBody" ]; then
-        subject="ANG Alerts $ALERT_NAME: Disk Space Alert from \$ip4"
+    if [ -n "$emailBody" ]; then
+        subject="ANG Alerts $(cat /root/.customername.txt): Disk Space Alert from $ip4"
         
         # Join recipients with space
-        recipientList=\$(IFS=,; echo "\${recipientEmails[*]}")
-        echo -e "\$emailBody" | mailx -v -s "\$subject" -r "ANG Alerts <notificationrsp@gmail.com>" -S smtp="smtp://\$smtpServer:\$smtpPort" -S smtp-use-starttls -S smtp-auth=login -S smtp-auth-user="\$smtpUsername" -S smtp-auth-password="\$smtpPassword" \$recipientList
+        recipientList=$(IFS=,; echo "${recipientEmails[*]}")
+        echo -e "$emailBody" | mailx -v -s "$subject" -r "ANG Alerts <notificationrsp@gmail.com>" -S smtp="smtp://$smtpServer:$smtpPort" -S smtp-use-starttls -S smtp-auth=login -S smtp-auth-user="$smtpUsername" -S smtp-auth-password="$smtpPassword" $recipientList
         
         # Optionally, log this action
-        echo "\$(date): Disk space alert sent. Details: \$emailBody" >> /var/log/disk_space_alert.log
+        echo "$(date): Disk space alert sent. Details: $emailBody" >> /var/log/disk_space_alert.log
+    fi
+}
+
+# Function to check for updates and install if available
+check_for_updates() {
+    current_version="1.0.0"
+    remote_version=$(curl -s https://raw.githubusercontent.com/maenmustafa/linux/main/version.txt)
+
+    if [ "$remote_version" != "$current_version" ]; then
+        echo "New version available: $remote_version. Updating..."
+        wget https://raw.githubusercontent.com/maenmustafa/linux/main/partition_monitor_installer.sh -O /tmp/partition_monitor_installer.sh
+        chmod +x /tmp/partition_monitor_installer.sh
+
+        # Read customer name from file
+        CustomerName=$(cat /root/.customername.txt)
+
+        /tmp/partition_monitor_installer.sh "$CustomerName"
+        echo "New version $remote_version installed successfully."
+    else
+        echo "No new version available. Current version: $current_version."
     fi
 }
 
 # Check disk space for each partition
 check_disk_space
+
+# Check for updates
+check_for_updates
 EOF
 
 if [ $? -eq 0 ]; then
@@ -76,6 +103,17 @@ if [ $? -eq 0 ]; then
     log "Successfully set execute permissions on /partitionmonitor.sh"
 else
     log "Failed to set execute permissions on /partitionmonitor.sh"
+    exit 1
+fi
+
+# Remove existing crontab lines containing /partitionmonitor.sh
+log "Removing existing crontab entries for /partitionmonitor.sh"
+crontab -l | grep -v '/partitionmonitor.sh' | crontab -
+
+if [ $? -eq 0 ]; then
+    log "Successfully removed existing crontab entries for /partitionmonitor.sh"
+else
+    log "Failed to remove existing crontab entries for /partitionmonitor.sh"
     exit 1
 fi
 
