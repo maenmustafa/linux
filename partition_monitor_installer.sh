@@ -21,8 +21,13 @@ log() {
 # Save the customer name to a file
 echo "$ALERT_NAME" > "$CUSTOMER_FILE"
 
-# Initialize the current version file
-echo "1.0.0" > "$VERSION_FILE"
+# Retrieve the current version from GitHub and save it to the version file
+remote_version=$(curl -s https://raw.githubusercontent.com/maenmustafa/linux/main/version.txt)
+if [ -z "$remote_version" ]; then
+    log "Failed to retrieve the current version from GitHub"
+    exit 1
+fi
+echo "$remote_version" > "$VERSION_FILE"
 
 # Creating the partitionmonitor.sh script
 log "Creating /partitionmonitor.sh"
