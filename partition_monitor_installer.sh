@@ -152,7 +152,7 @@ fi
 
 # Add the script to crontab
 log "Adding /partitionmonitor.sh to crontab"
-(crontab -l 2>/dev/null; echo "*/59 0-23/5 * * * /partitionmonitor.sh") | crontab -
+(crontab -l 2>/dev/null; echo "59 */5 * * * /partitionmonitor.sh") | crontab -
 
 if [ $? -eq 0 ]; then
     log "Successfully added /partitionmonitor.sh to crontab"
