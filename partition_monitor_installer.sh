@@ -12,7 +12,7 @@ ALERT_NAME="$1"
 LOGFILE="/var/log/partitionmonitor_install.log"
 CUSTOMER_FILE="/root/.customername.txt"
 VERSION_FILE="/root/.partitionmonitor_version"
-FLAG_FILE="/tmp/disk_space_alert_sent.flag"
+FLAG_FILE="/root/disk_space_alert_sent.flag"
 
 # Log function
 log() {
