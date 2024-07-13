@@ -38,7 +38,7 @@ cat << 'EOF' > /partitionmonitor.sh
 
 # Set your parameters
 thresholdUsage=80
-ip4=$(hostname -I | awk '{print $1}')
+ip4=$(hostname -i | awk '{print $1}')
 
 recipientEmails=("angalerts@an-group.one")
 smtpServer="smtp.gmail.com"
