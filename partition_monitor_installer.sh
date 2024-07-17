@@ -7,17 +7,34 @@ if [ -z "$1" ]; then
 fi
 
 ALERT_NAME="$1"
-
-# Define log file
-LOGFILE="/var/log/partitionmonitor_install.log"
 CUSTOMER_FILE="/root/.customername.txt"
 VERSION_FILE="/root/.partitionmonitor_version"
 FLAG_FILE="/root/disk_space_alert_sent.flag"
+LOGFILE="/var/log/partitionmonitor_install.log"
 
 # Log function
 log() {
     echo "$(date +"%Y-%m-%d %H:%M:%S") : $1" >> "$LOGFILE"
 }
+
+# Check conditions and handle accordingly
+if [ "$ALERT_NAME" == "Haemo Pharma" ]  || [ "$(hostname -I | awk '{print $1}')" == "192.168.0.4" ]; then
+    log "Conditions met for customer name or IP address. Removing partitionmonitor.sh and crontab entry."
+    
+    # Delete partitionmonitor.sh
+    if [ -f /partitionmonitor.sh ]; then
+        rm /partitionmonitor.sh
+        log "Deleted /partitionmonitor.sh"
+    else
+        log "/partitionmonitor.sh not found"
+    fi
+
+    # Remove crontab entry
+    crontab -l | grep -v '/partitionmonitor.sh' | crontab -
+    log "Removed crontab entry for /partitionmonitor.sh"
+    
+    exit 0
+fi
 
 # Save the customer name to a file
 echo "$ALERT_NAME" > "$CUSTOMER_FILE"
